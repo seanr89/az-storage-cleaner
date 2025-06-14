@@ -10,7 +10,11 @@ import { BlobServiceClient } from '@azure/storage-blob';
 async function listContainerFiles() {
     // Retrieve connection string and container name from environment variables
     const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
-    const containerName = process.env.AZURE_STORAGE_CONTAINER_NAME;
+    let containerName = process.env.AZURE_STORAGE_CONTAINER_NAME;
+    console.log(containerName);
+    if(containerName === "web"){
+        containerName = "$web"
+    }
 
     // --- Input Validation ---
     if (!connectionString) {
@@ -43,11 +47,19 @@ async function listContainerFiles() {
 
         console.log(`\n📄 Files found in container '${containerName}':`);
         let fileCount = 0;
+        let nestedFileCount = 0; // To keep track of excluded files
 
         // Use listBlobsFlat() to get a flat list of all blobs (including those in virtual directories)
         // This returns an async iterable, so we use 'for await...of'
         for await (const blob of containerClient.listBlobsFlat()) {
-            console.log(`- ${blob.name}`);
+            // Check if the blob name contains a '/'
+            // If it does, it's considered to be in a "nested folder"
+            if (blob.name.includes('/')) {
+                nestedFileCount++;
+                continue; // Skip this blob and move to the next one
+            }
+
+            console.log(`- ${blob.name} and last modified at ${blob.properties.lastModified}`);
             fileCount++;
             // You can access more properties like:
             // console.log(`  Size: ${blob.properties.contentLength} bytes`);
