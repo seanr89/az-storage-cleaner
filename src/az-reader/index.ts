@@ -5,15 +5,27 @@ import { BlobServiceClient } from '@azure/storage-blob';
 import { DateTime } from 'luxon';
 import * as path from 'path'; // For path manipulation (joining, ensuring safety)
 import * as fs from 'fs';   // For file system operations (creating directory)
-import { file } from 'bun';
+import type { FileInfo } from './models/Fileinfo';
+import { writeToJson, writeToCsv } from './file-writer';
+
+
 
 /**
- * Type definition for a file's information.
+ * Main function to orchestrate the entire process.
  */
-interface FileInfo {
-    name: string;
-    lastModified: Date | undefined;
+async function main() {
+    const grouped = await listAndGroupContainerFiles();
+    if (grouped) {
+        await reorderAndSaveGroupedFiles(grouped);
+    } else {
+        console.error('Aborting file saving due to previous errors.');
+    }
+    console.log('\n🎉 Application finished!');
 }
+
+// Call the main function to start the process
+main();
+
 
 /**
  * Extracts the base name for grouping, removing common extensions like .js, .css, .gz, .map etc.
@@ -66,6 +78,9 @@ async function listAndGroupContainerFiles(): Promise<Map<string, FileInfo[]> | u
     try {
         console.log(`\n📦 Connecting to Azure Storage account and listing ROOT-LEVEL files in container: '${containerName}'...`);
 
+        if(containerName === "web" || containerName === "log"){
+            containerName = "$" + containerName;
+        }
         const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
         const containerClient = blobServiceClient.getContainerClient(containerName);
 
@@ -136,6 +151,7 @@ async function reorderAndSaveGroupedFiles(groupedFiles: Map<string, FileInfo[]>)
     const outputDir = './output';
 
     let earliestTotals: FileInfo[] = [];
+    let alldata: FileInfo[] = [];
 
     try {
         // Ensure the output directory exists
@@ -197,9 +213,18 @@ async function reorderAndSaveGroupedFiles(groupedFiles: Map<string, FileInfo[]>)
             }
             fileContent += `\n--- End of Group ${groupKey} ---\n\n`;
 
+            // 
+            alldata.push(...filesInGroup);
+
+
             await Bun.write(outputFilePath, fileContent);
             console.log(`  📝 Saved: ${outputFilePath}`);
             filesSavedCount++;
+        }
+
+        if(alldata.length > 0){
+            await writeToCsv(alldata, "alldata.csv");
+            await writeToJson(alldata, "alldata.json");
         }
 
         console.log(`\n✅ Successfully saved ${filesSavedCount} group files to '${outputDir}'!`);
@@ -215,6 +240,8 @@ async function reorderAndSaveGroupedFiles(groupedFiles: Map<string, FileInfo[]>)
         }
     }
 }
+
+
 
 async function saveEarliestFileRecords(earliestTotals: FileInfo[], outputDir: string) {
     if (earliestTotals.length > 0) {
@@ -237,19 +264,3 @@ async function saveEarliestFileRecords(earliestTotals: FileInfo[], outputDir: st
         console.log(`\n📝 Saved earliest totals to: ${earliestOutputFilePath}`);
     }
 }
-
-/**
- * Main function to orchestrate the entire process.
- */
-async function main() {
-    const grouped = await listAndGroupContainerFiles();
-    if (grouped) {
-        await reorderAndSaveGroupedFiles(grouped);
-    } else {
-        console.error('Aborting file saving due to previous errors.');
-    }
-    console.log('\n🎉 Application finished!');
-}
-
-// Call the main function to start the process
-main();
