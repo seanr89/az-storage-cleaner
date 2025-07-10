@@ -194,36 +194,18 @@ async function reorderAndSaveGroupedFiles(groupedFiles: Map<string, FileInfo[]>)
             }
 
             // Sanitize groupKey for filename (replace potentially problematic characters if any, though getGroupKey makes it safe)
-            const safeGroupKey = groupKey.replace(/[^a-zA-Z0-9-.]/g, '_'); // Replace non-alphanumeric, non-hyphen, non-dot with underscore
-            const outputFilePath = path.join(outputDir, `${safeGroupKey}.txt`);
-
-            let fileContent = `Group Name: ${groupKey}\n`;
-            fileContent += `Earliest Modified: ${findEarliestDateInGroup(filesInGroup)
-                ? DateTime.fromJSDate(findEarliestDateInGroup(filesInGroup)!).toFormat("yyyy-MM-dd HH:mm:ss ZZZZ")
-                : 'N/A'}\n\n`;
-
-            // Sort files within the group by name for consistent output in the file
-            filesInGroup.sort((a, b) => a.name.localeCompare(b.name));
-
-            for (const file of filesInGroup) {
-                const lastModifiedDateTime = file.lastModified
-                    ? DateTime.fromJSDate(file.lastModified).toFormat("yyyy-MM-dd HH:mm:ss ZZZZ") // Full timezone name
-                    : 'N/A';
-                fileContent += `- ${file.name} (Last Modified: ${lastModifiedDateTime})\n`;
-            }
-            fileContent += `\n--- End of Group ${groupKey} ---\n\n`;
+            //const safeGroupKey = groupKey.replace(/[^a-zA-Z0-9-.]/g, '_'); // Replace non-alphanumeric, non-hyphen, non-dot with underscore
+            //processAndOutputTofile(safeGroupKey, groupKey, filesInGroup);
 
             // 
             alldata.push(...filesInGroup);
 
 
-            await Bun.write(outputFilePath, fileContent);
-            console.log(`  📝 Saved: ${outputFilePath}`);
             filesSavedCount++;
         }
 
         if(alldata.length > 0){
-            await writeToCsv(alldata, "alldata.csv");
+            //await writeToCsv(alldata, "alldata.csv");
             await writeToJson(alldata, "alldata.json");
         }
 
@@ -238,6 +220,29 @@ async function reorderAndSaveGroupedFiles(groupedFiles: Map<string, FileInfo[]>)
         } else {
             console.error(error);
         }
+    }
+
+    function processAndOutputTofile(safeGroupKey: string, groupKey: string, filesInGroup: FileInfo[]) {
+        const outputFilePath = path.join(outputDir, `${safeGroupKey}.txt`);
+
+        let fileContent = `Group Name: ${groupKey}\n`;
+        fileContent += `Earliest Modified: ${findEarliestDateInGroup(filesInGroup)
+            ? DateTime.fromJSDate(findEarliestDateInGroup(filesInGroup)!).toFormat("yyyy-MM-dd HH:mm:ss ZZZZ")
+            : 'N/A'}\n\n`;
+
+        // Sort files within the group by name for consistent output in the file
+        filesInGroup.sort((a, b) => a.name.localeCompare(b.name));
+
+        for (const file of filesInGroup) {
+            const lastModifiedDateTime = file.lastModified
+                ? DateTime.fromJSDate(file.lastModified).toFormat("yyyy-MM-dd HH:mm:ss ZZZZ") // Full timezone name
+                : 'N/A';
+            fileContent += `- ${file.name} (Last Modified: ${lastModifiedDateTime})\n`;
+        }
+        fileContent += `\n--- End of Group ${groupKey} ---\n\n`;
+
+        //await Bun.write(outputFilePath, fileContent);
+        console.log(`  📝 Saved: ${outputFilePath}`);
     }
 }
 

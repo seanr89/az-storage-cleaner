@@ -1,8 +1,9 @@
+import type { BlobServiceClient } from "@azure/storage-blob";
 
 export async function removeAzFilesFromContainer(
     containerName: string,
     azFiles: string[],
-    blobServiceClient: any
+    blobServiceClient: BlobServiceClient
     ): Promise<void> {
     const containerClient = blobServiceClient.getContainerClient(containerName);
     
